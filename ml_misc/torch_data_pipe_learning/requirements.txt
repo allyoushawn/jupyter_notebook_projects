@@ -1,0 +1,7 @@
+torch
+torchdata
+pandas
+matplotlib
+numpy
+psutil
+jupyter
