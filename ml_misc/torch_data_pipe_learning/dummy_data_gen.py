@@ -6,6 +6,8 @@ Generates synthetic parquet files in a partitioned directory structure:
 data/ds=YYYYMMDD/h=HH/<uuid>.parquet
 
 Each parquet file contains rows with columns:
+- ds: int32 (date in YYYYMMDD format)
+- h: int32 (hour 0-23)
 - swiper_id: int64
 - swipee_id: int64
 - feat1-feat5: float64
@@ -20,18 +22,22 @@ import numpy as np
 import pandas as pd
 
 
-def generate_dataframe(num_rows: int, null_probability: float = 0.0) -> pd.DataFrame:
+def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float = 0.0) -> pd.DataFrame:
     """
     Generate a DataFrame with synthetic data.
     
     Args:
         num_rows: Number of rows to generate
+        ds: Date in YYYYMMDD format (e.g., 20260101)
+        h: Hour (0-23)
         null_probability: Probability (0.0 to 1.0) that each feature value will be null
         
     Returns:
-        DataFrame with columns: swiper_id, swipee_id, feat1, feat2, feat3, feat4, feat5
+        DataFrame with columns: ds, h, swiper_id, swipee_id, feat1, feat2, feat3, feat4, feat5
     """
     data = {
+        'ds': np.full(num_rows, ds, dtype=np.int32),
+        'h': np.full(num_rows, h, dtype=np.int32),
         'swiper_id': np.random.randint(1, 1000000, size=num_rows, dtype=np.int64),
         'swipee_id': np.random.randint(1, 1000000, size=num_rows, dtype=np.int64),
         'feat1': np.random.randn(num_rows).astype(np.float64),
@@ -123,13 +129,14 @@ def generate_data(
             hour_dir.mkdir(parents=True, exist_ok=True)
             
             # Generate files_per_hour parquet files for this hour
+            date_int = int(date_str)  # Convert YYYYMMDD string to integer
             for file_idx in range(files_per_hour):
                 # Generate UUID for filename
                 file_uuid = uuid.uuid4()
                 file_path = hour_dir / f"{file_uuid}.parquet"
                 
-                # Generate and save DataFrame
-                df = generate_dataframe(rows_per_file, null_probability=null_probability)
+                # Generate and save DataFrame with ds and h columns
+                df = generate_dataframe(rows_per_file, ds=date_int, h=hour, null_probability=null_probability)
                 df.to_parquet(file_path, index=False)
                 total_files += 1
                 
