@@ -2,6 +2,8 @@ torch
 torchdata
 pandas
 matplotlib
-numpy
+numpy<2.0.0
 psutil
 jupyter
+pyarrow<=10.0.1
+petastorm>=0.12.1
