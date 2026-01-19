@@ -11,7 +11,11 @@ Each parquet file contains rows with columns:
 - swiper_id: int64
 - swipee_id: int64
 - feat1-feat5: float64
+- emb_1: list of 32 float32 (embedding; null_probability sets entire vector to null)
+- emb_2: list of 32 float32 (embedding; null_probability sets entire vector to null)
 """
+
+EMB_DIM = 32
 
 import argparse
 import uuid
@@ -33,8 +37,14 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
         null_probability: Probability (0.0 to 1.0) that each feature value will be null
         
     Returns:
-        DataFrame with columns: ds, h, swiper_id, swipee_id, feat1, feat2, feat3, feat4, feat5
+        DataFrame with columns: ds, h, swiper_id, swipee_id, feat1-feat5, emb_1, emb_2
     """
+    # Embedding: (num_rows, EMB_DIM) float32, stored as list of lists for Parquet
+    emb_1_arr = np.random.randn(num_rows, EMB_DIM).astype(np.float32)
+    emb_1_list = [emb_1_arr[i].tolist() for i in range(num_rows)]
+    emb_2_arr = np.random.randn(num_rows, EMB_DIM).astype(np.float32)
+    emb_2_list = [emb_2_arr[i].tolist() for i in range(num_rows)]
+
     data = {
         'ds': np.full(num_rows, ds, dtype=np.int32),
         'h': np.full(num_rows, h, dtype=np.int32),
@@ -45,6 +55,8 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
         'feat3': np.random.randn(num_rows).astype(np.float64),
         'feat4': np.random.randn(num_rows).astype(np.float64),
         'feat5': np.random.randn(num_rows).astype(np.float64),
+        'emb_1': emb_1_list,
+        'emb_2': emb_2_list,
     }
     
     df = pd.DataFrame(data)
@@ -56,6 +68,10 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
             # Create a mask for null values based on probability
             null_mask = np.random.random(num_rows) < null_probability
             df.loc[null_mask, col] = np.nan
+        # For emb_1, emb_2: set entire vector to null with same probability
+        for emb_col in ['emb_1', 'emb_2']:
+            emb_null_mask = np.random.random(num_rows) < null_probability
+            df.loc[emb_null_mask, emb_col] = None
     
     return df
 
