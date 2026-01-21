@@ -13,6 +13,7 @@ Each parquet file contains rows with columns:
 - feat1-feat5: float64
 - emb_1: list of 32 float32 (embedding; null_probability sets entire vector to null)
 - emb_2: list of 32 float32 (embedding; null_probability sets entire vector to null)
+- label: int32 (binary label: 0 or 1, no null values)
 """
 
 EMB_DIM = 32
@@ -37,7 +38,7 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
         null_probability: Probability (0.0 to 1.0) that each feature value will be null
         
     Returns:
-        DataFrame with columns: ds, h, swiper_id, swipee_id, feat1-feat5, emb_1, emb_2
+        DataFrame with columns: ds, h, swiper_id, swipee_id, feat1-feat5, emb_1, emb_2, label
     """
     # Embedding: (num_rows, EMB_DIM) float32, stored as list of lists for Parquet
     emb_1_arr = np.random.randn(num_rows, EMB_DIM).astype(np.float32)
@@ -57,6 +58,7 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
         'feat5': np.random.randn(num_rows).astype(np.float64),
         'emb_1': emb_1_list,
         'emb_2': emb_2_list,
+        'label': np.random.randint(0, 2, size=num_rows, dtype=np.int32),
     }
     
     df = pd.DataFrame(data)

@@ -7,6 +7,7 @@ class FeatureType(Enum):
     EMBEDDING = "embedding"   # Fixed-dim vector features
     ID = "id"                 # Integer ID features
     PARTITION = "partition"   # Partition columns (ds, h)
+    LABEL = "label"           # Binary or multi-class labels
 
 @dataclass
 class FeatureConfig:
@@ -35,4 +36,7 @@ FEATURE_CONFIGS = {
     # Partition features
     "ds": FeatureConfig("ds", FeatureType.PARTITION),
     "h": FeatureConfig("h", FeatureType.PARTITION),
+    
+    # Label
+    "label": FeatureConfig("label", FeatureType.LABEL),
 }
