@@ -91,7 +91,19 @@ class PyArrowParquetDataset(IterableDataset):
         else:
             indices = torch.randperm(batch_size)
         
-        return {key: value[indices] for key, value in batch_dict.items()}
+        # Convert to Python list for use with both tensors and lists
+        indices_list = indices.tolist()
+        
+        result = {}
+        for key, value in batch_dict.items():
+            if isinstance(value, list):
+                # For Python lists (e.g., var_len_sparse string features), use list indexing
+                result[key] = [value[i] for i in indices_list]
+            else:
+                # For tensors, use tensor indexing
+                result[key] = value[indices]
+        
+        return result
     
     def __iter__(self):
         """Iterate over batches of data."""
@@ -123,46 +135,63 @@ class PyArrowParquetDataset(IterableDataset):
                 batch_dict = {}
                 for col in batch.schema.names:
                     col_type = batch.schema.field(col).type
-                    # Handle list columns (e.g., embeddings stored as list<float32>)
+                    # Handle list columns (e.g., embeddings stored as list<float32>, or list<string>)
                     if pa.types.is_list(col_type):
-                        # For list columns, use values+offsets to build (N, emb_dim) array.
-                        # This avoids .as_py() (DoubleScalar/float()) and ensures uniform shapes
-                        # for null/empty/variable-length lists.
                         list_arr = batch[col]
-                        n = len(list_arr)
-                        # Convert offsets and values to numpy for efficient indexing
-                        offsets = list_arr.offsets.to_numpy()
-                        values = list_arr.values.to_numpy(zero_copy_only=False)
-                        # Get null mask as numpy array for efficient checking
-                        null_mask = list_arr.is_null().to_numpy(zero_copy_only=False)
-                        # emb_dim from first non-null row
-                        emb_dim = None
-                        for i in range(n):
-                            if not null_mask[i]:
-                                emb_dim = offsets[i + 1] - offsets[i]
-                                break
-                        if emb_dim is None:
-                            arr = np.empty((n, 0), dtype=np.float32)
+                        value_type = col_type.value_type
+                        
+                        # Check if it's a list of strings (for var_len_sparse features)
+                        if pa.types.is_string(value_type) or pa.types.is_large_string(value_type):
+                            # For list<string>, convert to Python list of lists
+                            # This preserves variable lengths for var_len_sparse features
+                            list_of_lists = list_arr.to_pylist()
+                            # Convert None to empty list for consistency
+                            list_of_lists = [lst if lst is not None else [] for lst in list_of_lists]
+                            batch_dict[col] = np.array(list_of_lists, dtype=object)
                         else:
-                            arr = np.full((n, emb_dim), np.nan, dtype=np.float32)
+                            # For numeric list columns (e.g., embeddings stored as list<float32>)
+                            # Use values+offsets to build (N, emb_dim) array.
+                            # This avoids .as_py() (DoubleScalar/float()) and ensures uniform shapes
+                            # for null/empty/variable-length lists.
+                            n = len(list_arr)
+                            # Convert offsets and values to numpy for efficient indexing
+                            offsets = list_arr.offsets.to_numpy()
+                            values = list_arr.values.to_numpy(zero_copy_only=False)
+                            # Get null mask as numpy array for efficient checking
+                            null_mask = list_arr.is_null().to_numpy(zero_copy_only=False)
+                            # emb_dim from first non-null row
+                            emb_dim = None
                             for i in range(n):
-                                if null_mask[i]:
-                                    continue  # row already NaN
-                                start = offsets[i]
-                                stop = offsets[i + 1]
-                                row_np = values[start:stop].astype(np.float32)
-                                ncopy = min(len(row_np), emb_dim)
-                                arr[i, :ncopy] = row_np[:ncopy]
-                        batch_dict[col] = arr
+                                if not null_mask[i]:
+                                    emb_dim = offsets[i + 1] - offsets[i]
+                                    break
+                            if emb_dim is None:
+                                arr = np.empty((n, 0), dtype=np.float32)
+                            else:
+                                arr = np.full((n, emb_dim), np.nan, dtype=np.float32)
+                                for i in range(n):
+                                    if null_mask[i]:
+                                        continue  # row already NaN
+                                    start = offsets[i]
+                                    stop = offsets[i + 1]
+                                    row_np = values[start:stop].astype(np.float32)
+                                    ncopy = min(len(row_np), emb_dim)
+                                    arr[i, :ncopy] = row_np[:ncopy]
+                            batch_dict[col] = arr
                     else:
                         arr = batch[col].to_numpy(zero_copy_only=False)  # Handles nulls
                         batch_dict[col] = arr
                 
                 # Convert to torch tensors - use copy() to ensure arrays are writable
-                torch_batch = {
-                    key: torch.as_tensor(value.copy())
-                    for key, value in batch_dict.items()
-                }
+                # Handle object dtype arrays (list<string>) specially - keep as Python lists
+                torch_batch = {}
+                for key, value in batch_dict.items():
+                    if hasattr(value, 'dtype') and value.dtype == object:
+                        # For object dtype (list<string>), convert to Python list
+                        # transform_batch expects lists for VAR_LEN_SPARSE features
+                        torch_batch[key] = value.tolist()
+                    else:
+                        torch_batch[key] = torch.as_tensor(value.copy())
                 
                 # Shuffle rows if requested
                 if self.shuffle_rows:

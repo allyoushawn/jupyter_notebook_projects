@@ -13,6 +13,10 @@ Each parquet file contains rows with columns:
 - feat1-feat5: float64
 - emb_1: list of 32 float32 (embedding; null_probability sets entire vector to null)
 - emb_2: list of 32 float32 (embedding; null_probability sets entire vector to null)
+- employer: string (sparse feature; nullable)
+- school_name: string (sparse feature; nullable)
+- interests: list<string> (var_len_sparse feature; can be empty list or null)
+- skills: list<string> (var_len_sparse feature; can be empty list or null)
 - label: int32 (binary label: 0 or 1, no null values)
 """
 
@@ -20,11 +24,47 @@ EMB_DIM = 32
 
 import argparse
 import uuid
+import random
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+# Vocabulary constants for sparse features
+EMPLOYERS = [
+    "Google", "Meta", "Amazon", "Apple", "Microsoft", "Netflix",
+    "Uber", "Airbnb", "Stripe", "Spotify", "Twitter", "LinkedIn",
+    "Tesla", "Oracle", "IBM", "Salesforce", "Adobe", "Intel",
+    "Nvidia", "AMD", "Cisco", "VMware", "PayPal", "eBay",
+    "Goldman Sachs", "JPMorgan", "Morgan Stanley", "Bank of America",
+    "Wells Fargo", "Citigroup", "BlackRock", "Vanguard"
+]
+
+SCHOOLS = [
+    "MIT", "Stanford", "Harvard", "Berkeley", "CMU", "Princeton",
+    "Yale", "Columbia", "Cornell", "Penn", "Dartmouth", "Brown",
+    "Caltech", "UCLA", "USC", "NYU", "Duke", "Northwestern",
+    "Chicago", "Michigan", "Virginia", "UNC", "Georgia Tech",
+    "UT Austin", "Washington", "Illinois", "Purdue", "Texas A&M"
+]
+
+INTERESTS = [
+    "hiking", "reading", "gaming", "cooking", "photography",
+    "traveling", "music", "fitness", "art", "coding",
+    "movies", "sports", "dancing", "yoga", "cycling",
+    "swimming", "running", "basketball", "soccer", "tennis",
+    "chess", "puzzles", "gardening", "painting", "writing",
+    "podcasts", "comedy", "theater", "concerts", "festivals"
+]
+
+SKILLS = [
+    "python", "java", "sql", "machine_learning", "data_analysis",
+    "communication", "leadership", "project_management", "javascript",
+    "react", "nodejs", "aws", "docker", "kubernetes", "git",
+    "agile", "scrum", "product_management", "design", "marketing",
+    "sales", "finance", "accounting", "consulting", "research"
+]
 
 
 def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float = 0.0) -> pd.DataFrame:
@@ -38,7 +78,8 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
         null_probability: Probability (0.0 to 1.0) that each feature value will be null
         
     Returns:
-        DataFrame with columns: ds, h, swiper_id, swipee_id, feat1-feat5, emb_1, emb_2, label
+        DataFrame with columns: ds, h, swiper_id, swipee_id, feat1-feat5, emb_1, emb_2,
+        employer, school_name, interests, skills, label
     """
     # Embedding: (num_rows, EMB_DIM) float32, stored as list of lists for Parquet
     emb_1_arr = np.random.randn(num_rows, EMB_DIM).astype(np.float32)
@@ -46,6 +87,22 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
     emb_2_arr = np.random.randn(num_rows, EMB_DIM).astype(np.float32)
     emb_2_list = [emb_2_arr[i].tolist() for i in range(num_rows)]
 
+    # Generate sparse features (employer, school_name)
+    employer_list = [random.choice(EMPLOYERS + [None]) for _ in range(num_rows)]
+    school_list = [random.choice(SCHOOLS + [None]) for _ in range(num_rows)]
+    
+    # Generate var_len_sparse features (interests, skills)
+    # interests: 0-15 items per row
+    interests_list = [
+        random.sample(INTERESTS, k=random.randint(0, 15)) if random.random() > 0.1 else []
+        for _ in range(num_rows)
+    ]
+    # skills: 0-12 items per row
+    skills_list = [
+        random.sample(SKILLS, k=random.randint(0, 12)) if random.random() > 0.1 else []
+        for _ in range(num_rows)
+    ]
+    
     data = {
         'ds': np.full(num_rows, ds, dtype=np.int32),
         'h': np.full(num_rows, h, dtype=np.int32),
@@ -58,6 +115,10 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
         'feat5': np.random.randn(num_rows).astype(np.float64),
         'emb_1': emb_1_list,
         'emb_2': emb_2_list,
+        'employer': employer_list,
+        'school_name': school_list,
+        'interests': interests_list,
+        'skills': skills_list,
         'label': np.random.randint(0, 2, size=num_rows, dtype=np.int32),
     }
     
@@ -74,6 +135,14 @@ def generate_dataframe(num_rows: int, ds: int, h: int, null_probability: float =
         for emb_col in ['emb_1', 'emb_2']:
             emb_null_mask = np.random.random(num_rows) < null_probability
             df.loc[emb_null_mask, emb_col] = None
+        # For sparse features (employer, school_name): set to None with same probability
+        for sparse_col in ['employer', 'school_name']:
+            sparse_null_mask = np.random.random(num_rows) < null_probability
+            df.loc[sparse_null_mask, sparse_col] = None
+        # For var_len_sparse features (interests, skills): set to empty list or None with same probability
+        for varlen_col in ['interests', 'skills']:
+            varlen_null_mask = np.random.random(num_rows) < null_probability
+            df.loc[varlen_null_mask, varlen_col] = None
     
     return df
 
