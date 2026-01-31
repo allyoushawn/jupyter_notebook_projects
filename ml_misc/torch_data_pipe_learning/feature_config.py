@@ -20,15 +20,26 @@ class FeatureConfig:
     num_buckets: Optional[int] = None   # For SPARSE/VAR_LEN_SPARSE
     max_len: Optional[int] = None       # For VAR_LEN_SPARSE
     combiner: Optional[str] = None      # For VAR_LEN_SPARSE: 'mean', 'sum', 'max'
+    embedding_dim: Optional[int] = None  # Embedding dimension for DENSE/SPARSE features
 
 FEATURE_CONFIGS = {
-    # Dense features (scalar floats)
-    # feat1 with bucketization: values map to buckets [<0.1, 0.1-0.2, 0.2-0.3, 0.3-0.4, >=0.4]
-    "feat1": FeatureConfig("feat1", FeatureType.DENSE, bucket_edges=[0.1, 0.2, 0.3, 0.4]),
-    "feat2": FeatureConfig("feat2", FeatureType.DENSE),
-    "feat3": FeatureConfig("feat3", FeatureType.DENSE),
-    "feat4": FeatureConfig("feat4", FeatureType.DENSE),
-    "feat5": FeatureConfig("feat5", FeatureType.DENSE),
+    # Dense features (scalar floats) with bucketization and embeddings
+    # bucket_edges=[0.1, 0.2, 0.3, 0.4] creates 5 buckets: [<0.1, 0.1-0.2, 0.2-0.3, 0.3-0.4, >=0.4]
+    "feat1": FeatureConfig("feat1", FeatureType.DENSE, 
+                           bucket_edges=[0.1, 0.2, 0.3, 0.4], 
+                           num_buckets=5, embedding_dim=8),
+    "feat2": FeatureConfig("feat2", FeatureType.DENSE, 
+                           bucket_edges=[0.1, 0.2, 0.3, 0.4], 
+                           num_buckets=5, embedding_dim=8),
+    "feat3": FeatureConfig("feat3", FeatureType.DENSE, 
+                           bucket_edges=[0.1, 0.2, 0.3, 0.4], 
+                           num_buckets=5, embedding_dim=8),
+    "feat4": FeatureConfig("feat4", FeatureType.DENSE, 
+                           bucket_edges=[0.1, 0.2, 0.3, 0.4], 
+                           num_buckets=5, embedding_dim=8),
+    "feat5": FeatureConfig("feat5", FeatureType.DENSE, 
+                           bucket_edges=[0.1, 0.2, 0.3, 0.4], 
+                           num_buckets=5, embedding_dim=8),
     
     # Embedding features
     "emb_1": FeatureConfig("emb_1", FeatureType.EMBEDDING, dim=32),
@@ -45,13 +56,17 @@ FEATURE_CONFIGS = {
     # Label
     "label": FeatureConfig("label", FeatureType.LABEL),
     
-    # Sparse features
-    "employer": FeatureConfig("employer", FeatureType.SPARSE, num_buckets=1000),
-    "school_name": FeatureConfig("school_name", FeatureType.SPARSE, num_buckets=1000),
+    # Sparse features with embeddings
+    "employer": FeatureConfig("employer", FeatureType.SPARSE, 
+                             num_buckets=1000, embedding_dim=16),
+    "school_name": FeatureConfig("school_name", FeatureType.SPARSE, 
+                                num_buckets=1000, embedding_dim=16),
     
-    # VarLen sparse features
+    # VarLen sparse features (with embedding_dim for model embedding layers)
     "interests": FeatureConfig("interests", FeatureType.VAR_LEN_SPARSE, 
-                               num_buckets=500, max_len=10, combiner="mean"),
+                               num_buckets=500, max_len=10, combiner="mean",
+                               embedding_dim=16),
     "skills": FeatureConfig("skills", FeatureType.VAR_LEN_SPARSE,
-                            num_buckets=500, max_len=10, combiner="mean"),
+                            num_buckets=500, max_len=10, combiner="mean",
+                            embedding_dim=16),
 }
