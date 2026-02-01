@@ -8,3 +8,6 @@ jupyter
 pyarrow<=10.0.1
 petastorm>=0.12.1
 deepctr_torch
+ray[data,train]>=2.9.0
+# torchrec and fbgemm-gpu are installed inside ray_learning.ipynb
+# to handle macOS compatibility (fbgemm-gpu not available on macOS)
