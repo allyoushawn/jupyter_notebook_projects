@@ -7,3 +7,4 @@ psutil
 jupyter
 pyarrow<=10.0.1
 petastorm>=0.12.1
+deepctr_torch
