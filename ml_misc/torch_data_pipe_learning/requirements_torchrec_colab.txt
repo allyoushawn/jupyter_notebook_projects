@@ -1,0 +1,40 @@
+# Requirements for Google Colab with TorchRec support
+# 
+# Install with: pip install -r requirements_torchrec_colab.txt
+#
+# Note: This file uses PyTorch's package index for CUDA 12.1 compatible packages.
+# After installation, restart your runtime if you downgraded PyTorch.
+
+# PyTorch package index for CUDA 12.1
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+# PyTorch ecosystem (compatible versions for TorchRec)
+torch==2.5.1
+torchvision==0.20.1
+torchaudio==2.5.1
+fbgemm-gpu==1.0.0
+torchrec==1.0.0
+
+# TorchRec dependencies
+torchmetrics
+iopath
+
+# Data processing
+torchdata==0.9.0
+pandas
+matplotlib
+numpy<2.0.0
+psutil
+
+# Parquet/data loading
+pyarrow<=10.0.1
+petastorm>=0.12.1
+
+# Ray for distributed training
+ray[data,train]>=2.9.0
+
+# Deep learning utilities
+deepctr_torch
+
+# Jupyter
+jupyter
