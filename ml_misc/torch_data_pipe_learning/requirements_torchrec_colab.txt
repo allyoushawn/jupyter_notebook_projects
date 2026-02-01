@@ -26,9 +26,9 @@ matplotlib
 numpy<2.0.0
 psutil
 
-# Parquet/data loading
-pyarrow<=10.0.1
-petastorm>=0.12.1
+# # Parquet/data loading
+# pyarrow<=10.0.1
+# petastorm>=0.12.1
 
 # Ray for distributed training
 ray[data,train]>=2.9.0
